@@ -9,11 +9,11 @@ import (
 )
 
 func TestCopyFile(t *testing.T) {
-	dst := filepath.Join("..", "test", "tmp", "copyfile")
+	dst := filepath.Join("..", "_test", "tmp", "copyfile")
 	os.Remove(dst)
 
 	Convey("Should copy the file to the destination", t, func() {
-		src := filepath.Join("..", "test", "fixtures", "foo")
+		src := filepath.Join("..", "_test", "fixtures", "foo")
 		err := CopyFile(dst, src)
 		So(err, ShouldBeNil)
 		bs, _ := ioutil.ReadFile(dst)
@@ -21,7 +21,7 @@ func TestCopyFile(t *testing.T) {
 	})
 
 	Convey("Should replace the destination", t, func() {
-		src := filepath.Join("..", "test", "fixtures", "bar")
+		src := filepath.Join("..", "_test", "fixtures", "bar")
 		err := CopyFile(dst, src)
 		So(err, ShouldBeNil)
 		bs, _ := ioutil.ReadFile(dst)
