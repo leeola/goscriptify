@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,8 +51,39 @@ func TestGetTempPaths(t *testing.T) {
 }
 
 func TestRunExec(t *testing.T) {
-	Convey("Should return exit status", t, nil)
-	Convey("Should pipe stdout and stderr", t, nil)
+	Convey("Should return exit status", t, func() {
+		e := filepath.Join("_test", "fixtures", "exit15.bash")
+		exit, err := RunExec(e, []string{},
+			nil, ioutil.Discard, ioutil.Discard)
+		So(err, ShouldBeNil)
+		So(exit, ShouldEqual, 15)
+	})
+
+	Convey("Should pass args to the bin", t, func() {
+		e := filepath.Join("_test", "fixtures", "exitarg.bash")
+		exit, err := RunExec(e, []string{"25"},
+			nil, ioutil.Discard, ioutil.Discard)
+		So(err, ShouldBeNil)
+		So(exit, ShouldEqual, 25)
+	})
+
+	Convey("Should pipe stdout and stderr", t, func() {
+		e := filepath.Join("_test", "fixtures", "exit15.bash")
+		var stdo bytes.Buffer
+		var stde bytes.Buffer
+		RunExec(e, []string{}, nil, &stdo, &stde)
+		So(stdo.String(), ShouldEqual, "STDOUT: Exiting 15")
+		So(stde.String(), ShouldEqual, "STDERR: Exiting 15")
+	})
+
+	Convey("Should pipe stdin", t, func() {
+		e := filepath.Join("_test", "fixtures", "echoinput.bash")
+		var i bytes.Buffer
+		var o bytes.Buffer
+		fmt.Fprint(&i, "Writing to STDIN")
+		RunExec(e, []string{}, &i, &o, ioutil.Discard)
+		So(o.String(), ShouldEqual, "Echoing Writing to STDIN")
+	})
 }
 
 func TestRunScriptWithOpts(t *testing.T) {

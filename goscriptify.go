@@ -80,6 +80,8 @@ func GetTempPaths(script, temp string) (string, string, error) {
 
 // Run the given path as an executable, with the supplied args, and
 // forwarding the stdin/out/err.
+//
+// Return the exit status, and any errors encountered.
 func RunExec(p string, args []string,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if _, err := os.Stat(p); err != nil {
