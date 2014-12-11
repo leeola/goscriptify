@@ -29,3 +29,29 @@ func TestBuild(t *testing.T) {
 
 	os.Remove(dst)
 }
+
+// This is hard to test, due to GetTempPaths using filepath.Abs()
+// So for now we're just checking the format.
+func TestGetTempPaths(t *testing.T) {
+	Convey("Should return the bin destination", t, func() {
+		b, _, err := GetTempPaths("foo", "bar")
+		So(err, ShouldBeNil)
+		So(b, ShouldStartWith, "bar")
+	})
+
+	Convey("Should return the source destination", t, func() {
+		_, s, err := GetTempPaths("foo", "bar")
+		So(err, ShouldBeNil)
+		So(s, ShouldStartWith, "bar")
+		So(s, ShouldEndWith, ".go")
+	})
+}
+
+func TestRunExec(t *testing.T) {
+	Convey("Should return exit status", t, nil)
+	Convey("Should pipe stdout and stderr", t, nil)
+}
+
+func TestRunScriptWithOpts(t *testing.T) {
+	Convey("Should copy the source to absolute hashed", t, nil)
+}

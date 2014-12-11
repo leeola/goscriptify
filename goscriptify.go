@@ -5,10 +5,23 @@ package main
 
 import (
 	"errors"
+	"github.com/leeola/goscriptify/utils"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"syscall"
 )
+
+type ScriptOptions struct {
+	Temp   string
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
+}
+
+func main() {}
 
 // Build the given source to the destination
 //
@@ -43,12 +56,83 @@ func Build(dst, src string) error {
 // have to ignore the string output of this function, as it will
 // fail on OSX. I'd love to see a workaround for this issue.
 func FindScript(ss [][]string) (string, error) {
-	return "", nil
+	return "", errors.New("Not implemented")
 }
 
-func main() {}
+// When given a script path and a base destination directory,
+// return the formatted temporary paths.
+//
+// The first (dst) path is the binary (executable) path
+// The second (dstSrc) path is the source script to compile to the bin
+func GetTempPaths(script, temp string) (string, string, error) {
+	// Get the full path of src
+	src, err := filepath.Abs(script)
+	if err != nil {
+		return "", "", err
+	}
 
-// Execute the given file as go code.
-func Run(p string) (int, error) {
+	// Get the hashed bin path. Eg: /tmp/goscriptify/ads7s6adada8asdka
+	dst := filepath.Join(temp, utils.HashString(src))
+	// Set src to dst.go ext
+	dstSrc := strings.Join([]string{dst, ".go"}, "")
+	return dst, dstSrc, nil
+}
+
+// Run the given path as an executable, with the supplied args, and
+// forwarding the stdin/out/err.
+func RunExec(p string, args []string,
+	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	if _, err := os.Stat(p); err != nil {
+		return 0, err
+	}
+
+	cmd := exec.Command(p, args...)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	err := cmd.Run()
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				return status.ExitStatus(), nil
+			} else {
+				return 0, err
+			}
+		} else {
+			return 0, err
+		}
+	}
+
 	return 0, nil
+}
+
+// Copy, compile, and run the given script with global $args, and
+// default options.
+func RunScript(p string) (int, error) {
+	return 0, nil
+}
+
+// Copy, compile, and run the given script with the given options.
+//
+// Returns the exit status and any encountered errors
+func RunScriptWithOpts(p string, args []string,
+	opts ScriptOptions) (int, error) {
+	dst, dstSrc, err := GetTempPaths(p, opts.Temp)
+	if err != nil {
+		return 0, err
+	}
+
+	err = utils.CopyFile(dstSrc, p)
+	if err != nil {
+		return 0, err
+	}
+
+	// In the future we will checksum the source(s), but for now we're
+	// just letting go handle the repeat build caching (if at all)
+	err = Build(dst, dstSrc)
+	if err != nil {
+		return 0, err
+	}
+
+	return RunExec(dst, args, os.Stdin, os.Stdout, os.Stderr)
 }
