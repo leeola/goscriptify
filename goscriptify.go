@@ -1,7 +1,7 @@
 //
 // # GoScriptify
 //
-package main
+package goscriptify
 
 import (
 	"errors"
@@ -22,8 +22,6 @@ type ScriptOptions struct {
 	Stdout io.Writer
 	Stderr io.Writer
 }
-
-func main() {}
 
 // Build the given source to the destination
 //
