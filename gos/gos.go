@@ -4,7 +4,8 @@
 // Execute the supplied file as go code.
 package gos
 
-import ()
+import "log"
 
 func main() {
+	log.Fatal("Error: Not Implemented")
 }

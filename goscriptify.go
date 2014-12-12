@@ -5,13 +5,15 @@ package main
 
 import (
 	"errors"
-	"github.com/leeola/goscriptify/utils"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/leeola/goscriptify/utils"
 )
 
 type ScriptOptions struct {
@@ -110,8 +112,19 @@ func RunExec(p string, args []string,
 
 // Copy, compile, and run the given script with global $args, and
 // default options.
-func RunScript(p string) (int, error) {
-	return 0, nil
+func RunScript(p string) {
+	opts := ScriptOptions{
+		"/tmp/goscriptify",
+		os.Stdin, os.Stdout, os.Stderr,
+	}
+	exit, err := RunScriptWithOpts(p, os.Args[1:], opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Fatal: %s", err.Error())
+		if exit == 0 {
+			os.Exit(1)
+		}
+	}
+	os.Exit(exit)
 }
 
 // Copy, compile, and run the given script with the given options.
