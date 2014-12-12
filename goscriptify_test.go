@@ -3,11 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBuild(t *testing.T) {
@@ -87,5 +88,21 @@ func TestRunExec(t *testing.T) {
 }
 
 func TestRunScriptWithOpts(t *testing.T) {
-	Convey("Should copy the source to absolute hashed", t, nil)
+	dst := filepath.Join("_test", "tmp")
+
+	Convey("Should run a .go file", t, func() {
+		e := filepath.Join("_test", "fixtures", "exit15.go")
+		opts := ScriptOptions{dst, nil, ioutil.Discard, ioutil.Discard}
+		exit, err := RunScriptWithOpts(e, []string{}, opts)
+		So(err, ShouldBeNil)
+		So(exit, ShouldEqual, 15)
+	})
+
+	Convey("Should run a no-ext go file", t, func() {
+		e := filepath.Join("_test", "fixtures", "exit15")
+		opts := ScriptOptions{dst, nil, ioutil.Discard, ioutil.Discard}
+		exit, err := RunScriptWithOpts(e, []string{}, opts)
+		So(err, ShouldBeNil)
+		So(exit, ShouldEqual, 15)
+	})
 }
