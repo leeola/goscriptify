@@ -23,6 +23,8 @@ func TestBuild(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 
+	os.Remove(dst)
+
 	Convey("Should only allow .go filenames for source", t, func() {
 		src := filepath.Join("_test", "fixtures", "exit15")
 		err := Build(dst, src)
@@ -31,7 +33,14 @@ func TestBuild(t *testing.T) {
 		So(err.Error(), ShouldContainSubstring, "ext")
 	})
 
-	os.Remove(dst)
+	Convey("Should return build error information", t, func() {
+		src := filepath.Join("_test", "fixtures", "synerr.go")
+		err := Build(dst, src)
+		buildErr, ok := err.(*BuildError)
+		So(ok, ShouldBeTrue)
+		So(buildErr.Exit, ShouldNotEqual, 0)
+		So(buildErr.Error(), ShouldContainSubstring, "syntax error")
+	})
 }
 
 // This is hard to test, due to GetTempPaths using filepath.Abs()

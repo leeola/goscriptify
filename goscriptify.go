@@ -4,6 +4,7 @@
 package goscriptify
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,15 @@ type ScriptOptions struct {
 	Stderr io.Writer
 }
 
+type BuildError struct {
+	Exit    int
+	Message string
+}
+
+func (e *BuildError) Error() string {
+	return fmt.Sprintf("Go build error:\n\n%s", e.Message)
+}
+
 // Build the given source to the destination
 //
 // Currently just using the go runtime to build, for simplicity.
@@ -37,7 +47,29 @@ func Build(dst, src string) error {
 	}
 
 	cmd := exec.Command("go", "build", "-o", dst, src)
-	return cmd.Run()
+
+	// Go returns build error output on the stderr, so we're storing it
+	// in case we need it. If needed, it will be returned inside of the
+	// BuildError
+	var stderr bytes.Buffer
+	defer stderr.Reset()
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				return &BuildError{
+					Exit:    status.ExitStatus(),
+					Message: stderr.String(),
+				}
+			}
+		}
+		// If it's not an execerr or we can't get the status, return err
+		return err
+	}
+
+	return nil
 }
 
 // Find a single file from a list of multiple files, and returning
@@ -117,7 +149,12 @@ func RunScript(p string) {
 	}
 	exit, err := RunScriptWithOpts(p, os.Args[1:], opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal: %s", err.Error())
+		if builderr, ok := err.(*BuildError); ok {
+			fmt.Fprint(os.Stderr, builderr.Error())
+		} else {
+			fmt.Fprintf(os.Stderr, "Fatal: %s", err.Error())
+		}
+
 		if exit == 0 {
 			os.Exit(1)
 		}
