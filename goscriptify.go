@@ -135,6 +135,11 @@ func RunScriptWithOpts(p string, args []string,
 		return 0, err
 	}
 
+	err = os.MkdirAll(opts.Temp, 0777)
+	if err != nil {
+		return 0, err
+	}
+
 	err = utils.CopyFile(dstSrc, p)
 	if err != nil {
 		return 0, err

@@ -105,4 +105,20 @@ func TestRunScriptWithOpts(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(exit, ShouldEqual, 15)
 	})
+
+	Convey("Should create all dest dirs if they don't exist", t, func() {
+		src := filepath.Join("_test", "fixtures", "exit15")
+		nestedDstRoot := filepath.Join(dst, "nested")
+		nestedDst := filepath.Join(nestedDstRoot, "dirs")
+
+		// Just to be safe, remove the dir ahead of time
+		os.RemoveAll(nestedDstRoot)
+
+		opts := ScriptOptions{nestedDst, nil, ioutil.Discard, ioutil.Discard}
+		RunScriptWithOpts(src, []string{}, opts)
+
+		// Now check to make sure the nestedDst exists
+		_, err := os.Stat(nestedDst)
+		So(err, ShouldBeNil)
+	})
 }
