@@ -36,17 +36,17 @@ func (e *BuildError) Error() string {
 // Build the given source to the destination
 //
 // Currently just using the go runtime to build, for simplicity.
-func Build(dst, src string) error {
-	if filepath.Ext(src) != ".go" {
-		return errors.New("source must have go extension")
+func Build(dst string, srcs []string) error {
+	// Becuase Go's builder can return some vague errors, lets do some
+	// simple sanity checks.
+	for _, s := range srcs {
+		if e := filepath.Ext(s); e != ".go" {
+			return errors.New("source must have go extension")
+		}
 	}
 
-	_, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("go", "build", "-o", dst, src)
+	args := append([]string{"build", "-o", dst}, srcs...)
+	cmd := exec.Command("go", args...)
 
 	// Go returns build error output on the stderr, so we're storing it
 	// in case we need it. If needed, it will be returned inside of the
@@ -55,7 +55,7 @@ func Build(dst, src string) error {
 	defer stderr.Reset()
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {
 			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
@@ -91,23 +91,61 @@ func FindScript(ss [][]string) (string, error) {
 	return "", errors.New("Not implemented")
 }
 
+type ScriptPath struct {
+	Original  string
+	Generated string
+	Clean     bool
+}
+
 // When given a script path and a base destination directory,
 // return the formatted temporary paths.
 //
 // The first (dst) path is the binary (executable) path
-// The second (dstSrc) path is the source script to compile to the bin
-func GetTempPaths(script, temp string) (string, string, error) {
-	// Get the full path of src
-	src, err := filepath.Abs(script)
-	if err != nil {
-		return "", "", err
+func GetPaths(sources []string, temp string) (string, []ScriptPath,
+	error) {
+	if len(sources) == 0 {
+		return "", []ScriptPath{}, errors.New("A source file is required")
 	}
+	paths := make([]ScriptPath, len(sources))
+
+	// To get a unique "id" of this build, we're combining the abs path
+	// of this directory, and all source names, and then hashing it.
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", []ScriptPath{}, err
+	}
+	h := utils.HashString(strings.Join(append(sources, dir), ""))
 
 	// Get the hashed bin path. Eg: /tmp/goscriptify/ads7s6adada8asdka
-	dst := filepath.Join(temp, utils.HashString(src))
-	// Set src to dst.go ext
-	dstSrc := strings.Join([]string{dst, ".go"}, "")
-	return dst, dstSrc, nil
+	binDst := filepath.Join(temp, h)
+
+	// Loop through all of the source files and generate go build friendly
+	// path names as needed.
+	for i, source := range sources {
+		paths[i] = ScriptPath{Original: source}
+		// If the source already ends in .go, no need to do anything
+		if filepath.Ext(source) == ".go" {
+			paths[i].Generated = source
+			paths[i].Clean = false
+			continue
+		}
+
+		// append .go
+		paths[i].Generated = fmt.Sprintf("%s.go", source)
+		paths[i].Clean = true
+
+		// If the source.go file exists, we can't replace it. So, choose
+		// an alternate, long and ugly name.
+		if exists, _ := utils.Exists(paths[i].Generated); exists {
+			d := filepath.Dir(source)
+			f := filepath.Base(source)
+			// Note that we're not checking if this exists currently.
+			// Living life on the edge of our seat i guess?
+			paths[i].Generated = filepath.Join(d, fmt.Sprintf("%s-%s.go", h, f))
+		}
+	}
+
+	return binDst, paths, nil
 }
 
 // Run the given path as an executable, with the supplied args, and
@@ -162,12 +200,46 @@ func RunScript(p string) {
 	os.Exit(exit)
 }
 
+// Go through a slice of ScriptPaths removing all ScriptPath.Generated
+// from the file system if their ScriptPath.Clean is true.
+func CleanScripts(ps []ScriptPath) error {
+	for _, sPath := range ps {
+		if sPath.Clean {
+			err := os.Remove(sPath.Generated)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Copy a slice of ScriptPaths from their ScriptPath.Original location
+// to the ScriptPath.Generated location.
+func CopyScripts(ps []ScriptPath) (err error) {
+	for _, sPath := range ps {
+		// If they're the same, no need to copy.
+		if sPath.Original == sPath.Generated {
+			continue
+		}
+		err = utils.CopyFile(sPath.Generated, sPath.Original)
+		if err != nil {
+			// We should automatically clean scripts up in the future,
+			// i'm just not decided on where this should take place - in the
+			// api.
+			//CleanScripts(ps[0:i])
+			break
+		}
+	}
+	return err
+}
+
 // Copy, compile, and run the given script with the given options.
 //
 // Returns the exit status and any encountered errors
 func RunScriptWithOpts(p string, args []string,
 	opts ScriptOptions) (int, error) {
-	dst, dstSrc, err := GetTempPaths(p, opts.Temp)
+	binDst, scriptPaths, err := GetPaths([]string{p}, opts.Temp)
 	if err != nil {
 		return 0, err
 	}
@@ -177,17 +249,29 @@ func RunScriptWithOpts(p string, args []string,
 		return 0, err
 	}
 
-	err = utils.CopyFile(dstSrc, p)
+	err = CopyScripts(scriptPaths)
 	if err != nil {
 		return 0, err
+	}
+
+	// Make a slice of sources for the build command
+	srcs := make([]string, len(scriptPaths))
+	for i, s := range scriptPaths {
+		srcs[i] = s.Generated
 	}
 
 	// In the future we will checksum the source(s), but for now we're
 	// just letting go handle the repeat build caching (if at all)
-	err = Build(dst, dstSrc)
+	err = Build(binDst, srcs)
 	if err != nil {
 		return 0, err
 	}
 
-	return RunExec(dst, args, os.Stdin, os.Stdout, os.Stderr)
+	// Now cleanup any script mess we made.
+	err = CleanScripts(scriptPaths)
+	if err != nil {
+		return 0, err
+	}
+
+	return RunExec(binDst, args, os.Stdin, os.Stdout, os.Stderr)
 }

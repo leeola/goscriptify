@@ -31,3 +31,15 @@ func HashString(s string) string {
 	io.WriteString(h, s)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
+
+// A shorthand for file/dir exists
+func Exists(p string) (bool, error) {
+	_, err := os.Stat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}

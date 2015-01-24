@@ -17,7 +17,7 @@ func TestBuild(t *testing.T) {
 
 	Convey("Should build the source to the target location", t, func() {
 		src := filepath.Join("_test", "fixtures", "exit15.go")
-		err := Build(dst, src)
+		err := Build(dst, []string{src})
 		So(err, ShouldBeNil)
 		_, err = os.Stat(dst)
 		So(err, ShouldBeNil)
@@ -27,7 +27,7 @@ func TestBuild(t *testing.T) {
 
 	Convey("Should only allow .go filenames for source", t, func() {
 		src := filepath.Join("_test", "fixtures", "exit15")
-		err := Build(dst, src)
+		err := Build(dst, []string{src})
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "go")
 		So(err.Error(), ShouldContainSubstring, "ext")
@@ -35,7 +35,7 @@ func TestBuild(t *testing.T) {
 
 	Convey("Should return build error information", t, func() {
 		src := filepath.Join("_test", "fixtures", "synerr.go")
-		err := Build(dst, src)
+		err := Build(dst, []string{src})
 		buildErr, ok := err.(*BuildError)
 		So(ok, ShouldBeTrue)
 		So(buildErr.Exit, ShouldNotEqual, 0)
@@ -43,20 +43,37 @@ func TestBuild(t *testing.T) {
 	})
 }
 
-// This is hard to test, due to GetTempPaths using filepath.Abs()
+// This is hard to test, due to GetPaths using os.Getwd()
 // So for now we're just checking the format.
-func TestGetTempPaths(t *testing.T) {
+func TestGetPaths(t *testing.T) {
 	Convey("Should return the bin destination", t, func() {
-		b, _, err := GetTempPaths("foo", "bar")
-		So(err, ShouldBeNil)
-		So(b, ShouldStartWith, "bar")
-	})
-
-	Convey("Should return the source destination", t, func() {
-		_, s, err := GetTempPaths("foo", "bar")
+		s, _, err := GetPaths([]string{"foo"}, "bar")
 		So(err, ShouldBeNil)
 		So(s, ShouldStartWith, "bar")
-		So(s, ShouldEndWith, ".go")
+	})
+
+	Convey("Should return the source destinations", t, func() {
+		_, ps, err := GetPaths([]string{"foo"}, "bar")
+		So(err, ShouldBeNil)
+		So(ps[0].Generated, ShouldEqual, "foo.go")
+	})
+
+	Convey("Should only append .go if it's missing", t, func() {
+		_, ps, err := GetPaths([]string{"foo.go"}, "bar")
+		So(err, ShouldBeNil)
+		So(ps[0].Generated, ShouldEqual, "foo.go")
+	})
+
+	Convey("Should choose an alternate filename when "+
+		"the source.go already exists", t, func() {
+		_, ps, err := GetPaths([]string{"_test/fixtures/exit15"}, "bar")
+		So(err, ShouldBeNil)
+		// The chosen filename will be hashed, so.. just like before
+		// we can't test the exact match. We can test the start and end,
+		// and ensure that it does *not* equal the exit15.go path.
+		So(ps[0].Generated, ShouldStartWith, "_test/fixtures/")
+		So(ps[0].Generated, ShouldEndWith, "exit15.go")
+		So(ps[0].Generated, ShouldNotEqual, "_test/fixtures/exit15.go")
 	})
 }
 
