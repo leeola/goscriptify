@@ -185,7 +185,7 @@ func RunScript(p string) {
 		"/tmp/goscriptify",
 		os.Stdin, os.Stdout, os.Stderr,
 	}
-	exit, err := RunScriptWithOpts(p, os.Args[1:], opts)
+	exit, err := RunScriptsWithOpts([]string{p}, os.Args[1:], opts)
 	if err != nil {
 		if builderr, ok := err.(*BuildError); ok {
 			fmt.Fprint(os.Stderr, builderr.Error())
@@ -237,9 +237,9 @@ func CopyScripts(ps []ScriptPath) (err error) {
 // Copy, compile, and run the given script with the given options.
 //
 // Returns the exit status and any encountered errors
-func RunScriptWithOpts(p string, args []string,
+func RunScriptsWithOpts(scripts, args []string,
 	opts ScriptOptions) (int, error) {
-	binDst, scriptPaths, err := GetPaths([]string{p}, opts.Temp)
+	binDst, scriptPaths, err := GetPaths(scripts, opts.Temp)
 	if err != nil {
 		return 0, err
 	}

@@ -113,13 +113,13 @@ func TestRunExec(t *testing.T) {
 	})
 }
 
-func TestRunScriptWithOpts(t *testing.T) {
+func TestRunScriptsWithOpts(t *testing.T) {
 	dst := filepath.Join("_test", "tmp")
 
 	Convey("Should run a .go file", t, func() {
 		e := filepath.Join("_test", "fixtures", "exit15.go")
 		opts := ScriptOptions{dst, nil, ioutil.Discard, ioutil.Discard}
-		exit, err := RunScriptWithOpts(e, []string{}, opts)
+		exit, err := RunScriptsWithOpts([]string{e}, []string{}, opts)
 		So(err, ShouldBeNil)
 		So(exit, ShouldEqual, 15)
 	})
@@ -127,7 +127,7 @@ func TestRunScriptWithOpts(t *testing.T) {
 	Convey("Should run a no-ext go file", t, func() {
 		e := filepath.Join("_test", "fixtures", "exit15")
 		opts := ScriptOptions{dst, nil, ioutil.Discard, ioutil.Discard}
-		exit, err := RunScriptWithOpts(e, []string{}, opts)
+		exit, err := RunScriptsWithOpts([]string{e}, []string{}, opts)
 		So(err, ShouldBeNil)
 		So(exit, ShouldEqual, 15)
 	})
@@ -141,7 +141,7 @@ func TestRunScriptWithOpts(t *testing.T) {
 		os.RemoveAll(nestedDstRoot)
 
 		opts := ScriptOptions{nestedDst, nil, ioutil.Discard, ioutil.Discard}
-		RunScriptWithOpts(src, []string{}, opts)
+		RunScriptsWithOpts([]string{src}, []string{}, opts)
 
 		// Now check to make sure the nestedDst exists
 		_, err := os.Stat(nestedDst)
