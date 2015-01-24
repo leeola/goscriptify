@@ -72,6 +72,40 @@ func Build(dst string, srcs []string) error {
 	return nil
 }
 
+// Go through a slice of ScriptPaths removing all ScriptPath.Generated
+// from the file system if their ScriptPath.Clean is true.
+func CleanScripts(ps []ScriptPath) error {
+	for _, sPath := range ps {
+		if sPath.Clean {
+			err := os.Remove(sPath.Generated)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Copy a slice of ScriptPaths from their ScriptPath.Original location
+// to the ScriptPath.Generated location.
+func CopyScripts(ps []ScriptPath) (err error) {
+	for _, sPath := range ps {
+		// If they're the same, no need to copy.
+		if sPath.Original == sPath.Generated {
+			continue
+		}
+		err = utils.CopyFile(sPath.Generated, sPath.Original)
+		if err != nil {
+			// We should automatically clean scripts up in the future,
+			// i'm just not decided on where this should take place - in the
+			// api.
+			//CleanScripts(ps[0:i])
+			break
+		}
+	}
+	return err
+}
+
 // Find a single file from a list of multiple files, and returning
 // the first found filename. This is to support multiple name types,
 // or cases.
@@ -198,40 +232,6 @@ func RunScript(p string) {
 		}
 	}
 	os.Exit(exit)
-}
-
-// Go through a slice of ScriptPaths removing all ScriptPath.Generated
-// from the file system if their ScriptPath.Clean is true.
-func CleanScripts(ps []ScriptPath) error {
-	for _, sPath := range ps {
-		if sPath.Clean {
-			err := os.Remove(sPath.Generated)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// Copy a slice of ScriptPaths from their ScriptPath.Original location
-// to the ScriptPath.Generated location.
-func CopyScripts(ps []ScriptPath) (err error) {
-	for _, sPath := range ps {
-		// If they're the same, no need to copy.
-		if sPath.Original == sPath.Generated {
-			continue
-		}
-		err = utils.CopyFile(sPath.Generated, sPath.Original)
-		if err != nil {
-			// We should automatically clean scripts up in the future,
-			// i'm just not decided on where this should take place - in the
-			// api.
-			//CleanScripts(ps[0:i])
-			break
-		}
-	}
-	return err
 }
 
 // Copy, compile, and run the given script with the given options.
