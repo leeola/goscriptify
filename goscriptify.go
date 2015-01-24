@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,8 +122,13 @@ func CopyScripts(ps []ScriptPath) (err error) {
 // to know the *actual* filename of the found file. Tests, then
 // have to ignore the string output of this function, as it will
 // fail on OSX. I'd love to see a workaround for this issue.
-func FindScript(ss [][]string) (string, error) {
-	return "", errors.New("Not implemented")
+func FindScript(ps []string) (string, error) {
+	for _, p := range ps {
+		if exists, _ := utils.Exists(p); exists {
+			return p, nil
+		}
+	}
+	return "", errors.New(fmt.Sprint("Cannot find", ps))
 }
 
 type ScriptPath struct {
@@ -232,6 +238,15 @@ func RunScript(p string) {
 		}
 	}
 	os.Exit(exit)
+}
+
+// A shorthand for FindScript and RunScript
+func RunOneScript(scripts ...string) {
+	s, err := FindScript(scripts)
+	if err != nil {
+		log.Fatal("Fatal:", err.Error())
+	}
+	RunScript(s)
 }
 
 // Copy, compile, and run the given script with the given options.
