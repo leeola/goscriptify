@@ -118,13 +118,13 @@ func CopyScripts(ps []ScriptPath) (err error) {
 // Will search for both "Builder" and "builder", and return the first
 // found file.
 func FindScript(ps []string) (string, error) {
-	var exists bool
+	var exists, isDir bool
 	for _, p := range ps {
 		// Not checking for error here, because we only care about finding
 		// a valid, readable, script. If anything stops that (permissions/etc)
 		// we don't care - it may as well not exist.
-		exists, _ = utils.Exists(p)
-		if exists {
+		exists, isDir, _ = utils.Exists(p)
+		if exists && !isDir {
 			return p, nil
 		}
 	}
@@ -176,7 +176,7 @@ func GetPaths(sources []string, temp string) (string, []ScriptPath,
 
 		// If the source.go file exists, we can't replace it. So, choose
 		// an alternate, long and ugly name.
-		if exists, _ := utils.Exists(paths[i].Generated); exists {
+		if exists, _, _ := utils.Exists(paths[i].Generated); exists {
 			d := filepath.Dir(source)
 			f := filepath.Base(source)
 			// Note that we're not checking if this exists currently.

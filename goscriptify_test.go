@@ -204,4 +204,13 @@ func TestFindScript(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom", "flash"))
 	})
+
+	Convey("Should not return a dir", t, func() {
+		s, err := FindScript([]string{
+			filepath.Join(fixDir, "baz"),
+			filepath.Join(fixDir, "baz", "bat"),
+		})
+		So(err, ShouldBeNil)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz", "bat"))
+	})
 }

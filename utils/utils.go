@@ -32,14 +32,15 @@ func HashString(s string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// A shorthand for file/dir exists
-func Exists(p string) (bool, error) {
-	_, err := os.Stat(p)
+// Exists returns whether the path exists or not, and if it is a directory
+// or not.
+func Exists(p string) (exists bool, isDir bool, err error) {
+	fi, err := os.Stat(p)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, nil
+			return false, false, nil
 		}
-		return false, err
+		return false, false, err
 	}
-	return true, nil
+	return true, fi.IsDir(), nil
 }
