@@ -228,7 +228,7 @@ func RunScriptsWithOpts(scripts, args []string,
 
 	// In the future we will checksum the source(s), but for now we're
 	// just letting go handle the repeat build caching (if at all)
-	err = Build(binDst, srcs)
+	err = BuildFiles(binDst, srcs)
 	if err != nil {
 		return 0, err
 	}
