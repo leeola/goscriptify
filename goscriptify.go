@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,37 +166,6 @@ func RunExec(p string, args []string,
 	}
 
 	return 0, nil
-}
-
-// Copy, compile, and run the given script with global $args, and
-// default options.
-func RunScript(p string) {
-	opts := ScriptOptions{
-		"/tmp/goscriptify",
-		os.Stdin, os.Stdout, os.Stderr,
-	}
-	exit, err := RunScriptsWithOpts([]string{p}, os.Args[1:], opts)
-	if err != nil {
-		if builderr, ok := err.(*BuildError); ok {
-			fmt.Fprint(os.Stderr, builderr.Error())
-		} else {
-			fmt.Fprintf(os.Stderr, "Fatal: %s", err.Error())
-		}
-
-		if exit == 0 {
-			os.Exit(1)
-		}
-	}
-	os.Exit(exit)
-}
-
-// A shorthand for FindScript and RunScript
-func RunOneScript(scripts ...string) {
-	s, err := FindScript(scripts)
-	if err != nil {
-		log.Fatal("Fatal:", err.Error())
-	}
-	RunScript(s)
 }
 
 // Copy, compile, and run the given script with the given options.
