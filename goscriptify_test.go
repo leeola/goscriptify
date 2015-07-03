@@ -45,6 +45,46 @@ func TestGetPaths(t *testing.T) {
 	})
 }
 
+func TestGetBinDest(t *testing.T) {
+	Convey("Should return the bin destination", t, func() {
+		// String to be hashed ends up as foobar
+		bin, _, err := getBinDest("bar", []string{"foo"}, "baz")
+		So(err, ShouldBeNil)
+		So(bin, ShouldEqual, "baz/3858f62230ac3c915f300c664312c63f")
+	})
+
+	Convey("Should return the hash", t, func() {
+		// String to be hashed ends up as foobar
+		_, h, err := getBinDest("bar", []string{"foo"}, "baz")
+		So(err, ShouldBeNil)
+		So(h, ShouldEqual, "3858f62230ac3c915f300c664312c63f")
+	})
+}
+
+func TestNewScriptPath(t *testing.T) {
+	Convey("Should choose an alternate filename when "+
+		"the source.go already exists", t, func() {
+		sp := NewScriptPath(
+			"acbd18db4cc2f85cedef654fccc4a4d8",
+			"_test/fixtures/exit0",
+		)
+		So(sp.Original, ShouldEqual, "_test/fixtures/exit0")
+		So(sp.Generated, ShouldEqual,
+			"_test/fixtures/acbd18db4cc2f85cedef654fccc4a4d8-exit0.go")
+		So(sp.Clean, ShouldBeTrue)
+	})
+
+	Convey("Should only append .go if it's missing", t, func() {
+		sp := NewScriptPath(
+			"acbd18db4cc2f85cedef654fccc4a4d8",
+			"_test/fixtures/exit0.go",
+		)
+		So(sp.Original, ShouldEqual, "_test/fixtures/exit0.go")
+		So(sp.Generated, ShouldEqual, "_test/fixtures/exit0.go")
+		So(sp.Clean, ShouldBeFalse)
+	})
+}
+
 func TestRunExec(t *testing.T) {
 	Convey("Should return exit status", t, func() {
 		e := filepath.Join("_test", "fixtures", "exit15.bash")
@@ -78,6 +118,57 @@ func TestRunExec(t *testing.T) {
 		fmt.Fprint(&i, "Writing to STDIN")
 		RunExec(e, []string{}, &i, &o, ioutil.Discard)
 		So(o.String(), ShouldEqual, "Echoing Writing to STDIN")
+	})
+}
+
+func TestRunScriptDirWithOpts(t *testing.T) {
+	fixDir := filepath.Join("_test", "fixtures")
+	tmpDir := filepath.Join("_test", "tmp")
+
+	Convey("Should run a go dir", t, func() {
+		p := filepath.Join(fixDir, "exit15_dir")
+		exit, err := RunScriptDirWithOpts(p, []string{}, ScriptOptions{
+			Temp:  tmpDir,
+			Stdin: nil, Stdout: ioutil.Discard, Stderr: ioutil.Discard,
+		})
+		So(err, ShouldBeNil)
+		So(exit, ShouldEqual, 15)
+	})
+
+	Convey("Should create all temp dirs if they don't exist", t, func() {
+		src := filepath.Join(fixDir, "exit15_dir")
+		tmpRoot := filepath.Join(tmpDir, "nested")
+		tmp := filepath.Join(tmpRoot, "dirs")
+
+		// Just to be safe, remove the dir ahead of time
+		os.RemoveAll(tmpRoot)
+
+		exit, err := RunScriptDirWithOpts(src, []string{}, ScriptOptions{
+			Temp:  tmp,
+			Stdin: nil, Stdout: ioutil.Discard, Stderr: ioutil.Discard,
+		})
+		So(err, ShouldBeNil)
+		So(exit, ShouldEqual, 15)
+
+		// Now check to make sure the tmp exists
+		_, err = os.Stat(tmp)
+		So(err, ShouldBeNil)
+	})
+
+	Convey("Should output stdout and stderr", t, func() {
+		p := filepath.Join(fixDir, "exit15_dir")
+		var stdout, stderr bytes.Buffer
+
+		_, err := RunScriptDirWithOpts(p, []string{}, ScriptOptions{
+			Temp:  tmpDir,
+			Stdin: nil, Stdout: &stdout, Stderr: &stderr,
+		})
+		So(err, ShouldBeNil)
+
+		b, _ := ioutil.ReadAll(&stdout)
+		So(string(b), ShouldEqual, "STDOUT: Exiting 15")
+		b, _ = ioutil.ReadAll(&stderr)
+		So(string(b), ShouldEqual, "STDERR: Exiting 15")
 	})
 }
 

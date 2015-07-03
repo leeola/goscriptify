@@ -23,6 +23,55 @@ type ScriptOptions struct {
 	Stderr io.Writer
 }
 
+func NewScriptPath(h, p string) ScriptPath {
+	sp := ScriptPath{Original: p}
+	// If the source already ends in .go, no need to do anything
+	if filepath.Ext(p) == ".go" {
+		sp.Generated = p
+		// !IMPORTANT! Don't delete pre-existing go files.
+		// Lets not be jerks please?
+		sp.Clean = false
+		return sp
+	}
+
+	// append .go
+	sp.Generated = fmt.Sprintf("%s.go", p)
+	sp.Clean = true
+
+	// If the source.go file exists, we can't replace it. So, choose
+	// an alternate, long and ugly name.
+	if exists, _, _ := utils.Exists(sp.Generated); exists {
+		d := filepath.Dir(p)
+		f := filepath.Base(p)
+		// Note that we're not checking if this exists currently.
+		// Living life on the edge of our seat i guess?
+		sp.Generated = filepath.Join(d, fmt.Sprintf("%s-%s.go", h, f))
+	}
+
+	return sp
+}
+
+func NewScriptPaths(hash string, paths []string) []ScriptPath {
+	sps := make([]ScriptPath, len(paths))
+	for i, p := range paths {
+		sps[i] = NewScriptPath(hash, p)
+	}
+	return sps
+}
+
+// TODO: Make Clean readonly via hiding and a read method.
+type ScriptPath struct {
+	// The original, unmodified script path
+	Original string
+
+	// The generated script path, which may contain a hash string to make
+	// the file unique (to not replace the Original)
+	Generated string
+
+	// Whether or not to remove the file at the end.
+	Clean bool
+}
+
 // Go through a slice of ScriptPaths removing all ScriptPath.Generated
 // from the file system if their ScriptPath.Clean is true.
 func CleanScripts(ps []ScriptPath) error {
@@ -150,16 +199,11 @@ func findScriptOrDir(cwd string, ps []string, useDir bool) (path string,
 	return "", false, errors.New(fmt.Sprint("Cannot find", ps))
 }
 
-type ScriptPath struct {
-	Original  string
-	Generated string
-	Clean     bool
-}
-
 // When given a script path and a base destination directory,
 // return the formatted temporary paths.
 //
 // The first (dst) path is the binary (executable) path
+//func GetBinDest(sources []string, temp string) (string, []ScriptPath,
 func GetPaths(sources []string, temp string) (string, []ScriptPath,
 	error) {
 	if len(sources) == 0 {
@@ -205,6 +249,35 @@ func GetPaths(sources []string, temp string) (string, []ScriptPath,
 	}
 
 	return binDst, paths, nil
+}
+
+// GetBinDest generates a md5 of the source paths, and returns that
+// and the md5 it generated.
+func GetBinDest(sources []string, temp string) (binDst, hash string, err error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", "", err
+	}
+
+	return getBinDest(cwd, sources, temp)
+}
+
+// getBinDest is the cwd testable implementation behind GetBinDest
+func getBinDest(cwd string, sources []string, temp string) (binDst, hash string,
+	err error) {
+
+	if len(sources) == 0 {
+		return "", "", errors.New("GetBinDest: A source file is required")
+	}
+
+	// To get a unique "id" of this build, we're combining the abs path
+	// of the cwd and all source names, and then hashing it.
+	h := utils.HashString(strings.Join(append(sources, cwd), ""))
+
+	// Make the hashed bin path. Eg: /tmp/goscriptify/ads7s6adada8asdka
+	binDst = filepath.Join(temp, h)
+
+	return binDst, h, nil
 }
 
 // Run the given path as an executable, with the supplied args, and
@@ -267,6 +340,7 @@ func RunScriptsWithOpts(scripts, args []string,
 	// just letting go handle the repeat build caching (if at all)
 	err = BuildFiles(binDst, srcs)
 	if err != nil {
+		// TODO: Add a defer on cleanup here
 		return 0, err
 	}
 
@@ -276,5 +350,27 @@ func RunScriptsWithOpts(scripts, args []string,
 		return 0, err
 	}
 
+	// TODO: use opts here, and test for it.
 	return RunExec(binDst, args, os.Stdin, os.Stdout, os.Stderr)
+}
+
+func RunScriptDirWithOpts(dir string, args []string, opts ScriptOptions) (int, error) {
+	binDst, _, err := GetBinDest([]string{dir}, opts.Temp)
+	if err != nil {
+		return 0, err
+	}
+
+	err = os.MkdirAll(opts.Temp, 0777)
+	if err != nil {
+		return 0, err
+	}
+
+	// In the future we will checksum the source(s), but for now we're
+	// just letting go handle the repeat build caching (if at all)
+	err = BuildDir(binDst, dir)
+	if err != nil {
+		return 0, err
+	}
+
+	return RunExec(binDst, args, opts.Stdin, opts.Stdout, opts.Stderr)
 }

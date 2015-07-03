@@ -1,7 +1,13 @@
 package main
-import "os"
+
+import (
+	"fmt"
+	"os"
+)
 
 func main() {
+	fmt.Fprint(os.Stdout, "STDOUT: Exiting 15")
+	fmt.Fprint(os.Stderr, "STDERR: Exiting 15")
 	os.Exit(15)
 }
 
