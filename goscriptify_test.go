@@ -182,3 +182,113 @@ func TestFindScript(t *testing.T) {
 		So(s, ShouldEqual, filepath.Join(fixDir, "baz", "bat"))
 	})
 }
+
+// TODO: Find a way to make FindScriptOrDir tests pass on OSX.
+// NOTE: Due to OSX's case insensitivity, it's hard (maybe possible?)
+// to know the *actual* filename of the found file. Tests, then
+// have to ignore the string output of this function, as it will
+// fail on OSX. I'd love to see a workaround for this issue.
+//
+// So, a fail on OSX does not currently mean truly failing tests.
+// Run on Linux to confirm.
+func TestFindScriptOrDir(t *testing.T) {
+	fixDir := filepath.Join("_test", "fixtures")
+
+	Convey("Should find a given script", t, func() {
+		s, isDir, err := FindScriptOrDir([]string{
+			filepath.Join(fixDir, "foo"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeFalse)
+		So(s, ShouldEqual, filepath.Join(fixDir, "foo"))
+	})
+
+	Convey("Should find the given subdirectory script", t, func() {
+		s, isDir, err := FindScriptOrDir([]string{
+			filepath.Join(fixDir, "baz", "bat"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeFalse)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz", "bat"))
+	})
+
+	Convey("Should find the first given script", t, func() {
+		s, isDir, err := FindScriptOrDir([]string{
+			filepath.Join(fixDir, "bar"),
+			filepath.Join(fixDir, "foo"),
+			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeFalse)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bar"))
+
+		s, isDir, err = FindScriptOrDir([]string{
+			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+			filepath.Join(fixDir, "bar"),
+			filepath.Join(fixDir, "foo"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeFalse)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz", "bat"))
+
+		s, isDir, err = FindScriptOrDir([]string{
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "bar"),
+			filepath.Join(fixDir, "foo"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeFalse)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom", "flash"))
+	})
+
+	Convey("Should find the first given script dir", t, func() {
+		s, isDir, err := FindScriptOrDir([]string{
+			filepath.Join(fixDir, "idontexist"),
+			filepath.Join(fixDir, "baz"),
+			filepath.Join(fixDir, "bang", "boom"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeTrue)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz"))
+
+		s, isDir, err = FindScriptOrDir([]string{
+			filepath.Join(fixDir, "idontexist"),
+			filepath.Join(fixDir, "bang", "boom"),
+			filepath.Join(fixDir, "baz"),
+		}, false)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeTrue)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom"))
+	})
+
+	Convey("Should use the directory of a script, if useDir", t, func() {
+		s, isDir, err := FindScriptOrDir([]string{
+			filepath.Join(fixDir, "idontexist"),
+			filepath.Join(fixDir, "baz", "bat"),
+		}, true)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeTrue)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz"))
+
+		s, isDir, err = FindScriptOrDir([]string{
+			filepath.Join(fixDir, "idontexist"),
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+		}, true)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeTrue)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom"))
+	})
+
+	Convey("Should not use the directory of a directory", t, func() {
+		s, isDir, err := FindScriptOrDir([]string{
+			filepath.Join(fixDir, "idontexist"),
+			filepath.Join(fixDir, "bang", "boom"),
+		}, true)
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeTrue)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom"))
+	})
+}

@@ -57,9 +57,9 @@ func CopyScripts(ps []ScriptPath) (err error) {
 	return err
 }
 
-// Find a single file from a list of multiple files, and returning
-// the first found filename. This is to support multiple name types,
-// or cases.
+// FindScript will find a single file from a list of multiple files,
+// and returning the first found filename. This is to support multiple
+// name types, or cases.
 //
 // Example:
 //
@@ -79,6 +79,52 @@ func FindScript(ps []string) (string, error) {
 		}
 	}
 	return "", errors.New(fmt.Sprint("Cannot find", ps))
+}
+
+// FindScriptOrDir will find a single file or dir from a list of
+// paths.
+//
+// If useDir is true, the found script's directory will be
+// returned. If the script is not in a subdirectory, useDir does
+// nothing. This makes FindScriptOrDir functionally the same as
+// FindScript, with the bonus of accepting an explicit directory
+// as a Script.
+//
+// Examples:
+//
+//		// This will return "someDir/Builder" if it exists
+// 		FindScriptOrDir([]string{"someDir/Builder", "Builder"}, false)
+// 		// This will return "someDir" if "someDir/Builder" exists
+// 		FindScriptOrDir([]string{"someDir/Builder", "Builder"}, true)
+// 		// Both will return "Builder" if "someDir/Builder" does not
+// 		// exist
+//
+func FindScriptOrDir(ps []string, useDir bool) (path string, isDir bool,
+	err error) {
+
+	var exists bool
+	for _, p := range ps {
+		// Not checking for error here, because we only care about finding
+		// a valid, readable, script. If anything stops that (permissions/etc)
+		// we don't care - it may as well not exist.
+		exists, isDir, _ = utils.Exists(p)
+		if exists {
+			// If path is a dir, we can't use its dir. Return it directly.
+			if isDir || !useDir {
+				return p, isDir, nil
+			}
+
+			dir := filepath.Dir(p)
+
+			// If path is in the root (given) dir, return the script
+			if dir == "." {
+				return p, isDir, nil
+			}
+
+			return dir, true, nil
+		}
+	}
+	return "", false, errors.New(fmt.Sprint("Cannot find", ps))
 }
 
 type ScriptPath struct {
