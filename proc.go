@@ -12,10 +12,7 @@ import (
 // IMPORTANT: This exits the process, captures Stdin, and prints to
 // Stdout and Stderr as needed.
 func RunScript(p string) {
-	opts := ScriptOptions{
-		"/tmp/goscriptify",
-		os.Stdin, os.Stdout, os.Stderr,
-	}
+	opts := NewScriptOptions()
 	exit, err := RunScriptsWithOpts([]string{p}, os.Args[1:], opts)
 	if err != nil {
 		if builderr, ok := err.(*BuildError); ok {
@@ -37,10 +34,7 @@ func RunScript(p string) {
 // IMPORTANT: This exits the process, captures Stdin, and prints to
 // Stdout and Stderr as needed.
 func RunDir(p string) {
-	opts := ScriptOptions{
-		"/tmp/goscriptify",
-		os.Stdin, os.Stdout, os.Stderr,
-	}
+	opts := NewScriptOptions()
 	exit, err := RunScriptDirWithOpts(p, os.Args[1:], opts)
 	if err != nil {
 		if builderr, ok := err.(*BuildError); ok {

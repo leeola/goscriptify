@@ -16,6 +16,14 @@ import (
 	"github.com/leeola/goscriptify/utils"
 )
 
+// NewScriptOptions returns a default script options.
+func NewScriptOptions() ScriptOptions {
+	return ScriptOptions{
+		"/tmp/goscriptify",
+		os.Stdin, os.Stdout, os.Stderr,
+	}
+}
+
 type ScriptOptions struct {
 	Temp   string
 	Stdin  io.Reader
