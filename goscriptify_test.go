@@ -11,40 +11,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-// This is hard to test, due to GetPaths using os.Getwd()
-// So for now we're just checking the format.
-func TestGetPaths(t *testing.T) {
-	Convey("Should return the bin destination", t, func() {
-		s, _, err := GetPaths([]string{"foo"}, "bar")
-		So(err, ShouldBeNil)
-		So(s, ShouldStartWith, "bar")
-	})
-
-	Convey("Should return the source destinations", t, func() {
-		_, ps, err := GetPaths([]string{"foo"}, "bar")
-		So(err, ShouldBeNil)
-		So(ps[0].Generated, ShouldEqual, "foo.go")
-	})
-
-	Convey("Should only append .go if it's missing", t, func() {
-		_, ps, err := GetPaths([]string{"foo.go"}, "bar")
-		So(err, ShouldBeNil)
-		So(ps[0].Generated, ShouldEqual, "foo.go")
-	})
-
-	Convey("Should choose an alternate filename when "+
-		"the source.go already exists", t, func() {
-		_, ps, err := GetPaths([]string{"_test/fixtures/exit15"}, "bar")
-		So(err, ShouldBeNil)
-		// The chosen filename will be hashed, so.. just like before
-		// we can't test the exact match. We can test the start and end,
-		// and ensure that it does *not* equal the exit15.go path.
-		So(ps[0].Generated, ShouldStartWith, "_test/fixtures/")
-		So(ps[0].Generated, ShouldEndWith, "exit15.go")
-		So(ps[0].Generated, ShouldNotEqual, "_test/fixtures/exit15.go")
-	})
-}
-
 func TestGetBinDest(t *testing.T) {
 	Convey("Should return the bin destination", t, func() {
 		// String to be hashed ends up as foobar

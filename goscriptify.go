@@ -199,58 +199,6 @@ func findScriptOrDir(cwd string, ps []string, useDir bool) (path string,
 	return "", false, errors.New(fmt.Sprint("Cannot find", ps))
 }
 
-// When given a script path and a base destination directory,
-// return the formatted temporary paths.
-//
-// The first (dst) path is the binary (executable) path
-//func GetBinDest(sources []string, temp string) (string, []ScriptPath,
-func GetPaths(sources []string, temp string) (string, []ScriptPath,
-	error) {
-	if len(sources) == 0 {
-		return "", []ScriptPath{}, errors.New("A source file is required")
-	}
-	paths := make([]ScriptPath, len(sources))
-
-	// To get a unique "id" of this build, we're combining the abs path
-	// of this directory, and all source names, and then hashing it.
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", []ScriptPath{}, err
-	}
-	h := utils.HashString(strings.Join(append(sources, dir), ""))
-
-	// Get the hashed bin path. Eg: /tmp/goscriptify/ads7s6adada8asdka
-	binDst := filepath.Join(temp, h)
-
-	// Loop through all of the source files and generate go build friendly
-	// path names as needed.
-	for i, source := range sources {
-		paths[i] = ScriptPath{Original: source}
-		// If the source already ends in .go, no need to do anything
-		if filepath.Ext(source) == ".go" {
-			paths[i].Generated = source
-			paths[i].Clean = false
-			continue
-		}
-
-		// append .go
-		paths[i].Generated = fmt.Sprintf("%s.go", source)
-		paths[i].Clean = true
-
-		// If the source.go file exists, we can't replace it. So, choose
-		// an alternate, long and ugly name.
-		if exists, _, _ := utils.Exists(paths[i].Generated); exists {
-			d := filepath.Dir(source)
-			f := filepath.Base(source)
-			// Note that we're not checking if this exists currently.
-			// Living life on the edge of our seat i guess?
-			paths[i].Generated = filepath.Join(d, fmt.Sprintf("%s-%s.go", h, f))
-		}
-	}
-
-	return binDst, paths, nil
-}
-
 // GetBinDest generates a md5 of the source paths, and returns that
 // and the md5 it generated.
 func GetBinDest(sources []string, temp string) (binDst, hash string, err error) {
@@ -315,10 +263,12 @@ func RunExec(p string, args []string,
 // Returns the exit status and any encountered errors
 func RunScriptsWithOpts(scripts, args []string,
 	opts ScriptOptions) (int, error) {
-	binDst, scriptPaths, err := GetPaths(scripts, opts.Temp)
+	binDst, hash, err := GetBinDest(scripts, opts.Temp)
 	if err != nil {
 		return 0, err
 	}
+
+	scriptPaths := NewScriptPaths(hash, scripts)
 
 	err = os.MkdirAll(opts.Temp, 0777)
 	if err != nil {
