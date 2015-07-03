@@ -340,7 +340,8 @@ func RunScriptsWithOpts(scripts, args []string,
 	// just letting go handle the repeat build caching (if at all)
 	err = BuildFiles(binDst, srcs)
 	if err != nil {
-		// TODO: Add a defer on cleanup here
+		// Explicitly cleanup if we encounter any errors
+		CleanScripts(scriptPaths)
 		return 0, err
 	}
 
