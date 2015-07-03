@@ -117,14 +117,14 @@ func CopyScripts(ps []ScriptPath) (err error) {
 //
 // Will search for both "Builder" and "builder", and return the first
 // found file.
-//
-// NOTE: Due to OSX's case insensitivity, it's hard (maybe possible?)
-// to know the *actual* filename of the found file. Tests, then
-// have to ignore the string output of this function, as it will
-// fail on OSX. I'd love to see a workaround for this issue.
 func FindScript(ps []string) (string, error) {
+	var exists bool
 	for _, p := range ps {
-		if exists, _ := utils.Exists(p); exists {
+		// Not checking for error here, because we only care about finding
+		// a valid, readable, script. If anything stops that (permissions/etc)
+		// we don't care - it may as well not exist.
+		exists, _ = utils.Exists(p)
+		if exists {
 			return p, nil
 		}
 	}

@@ -148,3 +148,60 @@ func TestRunScriptsWithOpts(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
+
+// TODO: Find a way to make FindScript tests pass on OSX.
+// NOTE: Due to OSX's case insensitivity, it's hard (maybe possible?)
+// to know the *actual* filename of the found file. Tests, then
+// have to ignore the string output of this function, as it will
+// fail on OSX. I'd love to see a workaround for this issue.
+//
+// So, a fail on OSX does not currently mean truly failing tests.
+// Run on Linux to confirm.
+func TestFindScript(t *testing.T) {
+	fixDir := filepath.Join("_test", "fixtures")
+
+	Convey("Should find a given script", t, func() {
+		s, err := FindScript([]string{
+			filepath.Join(fixDir, "foo"),
+		})
+		So(err, ShouldBeNil)
+		So(s, ShouldEqual, filepath.Join(fixDir, "foo"))
+	})
+
+	Convey("Should find the given subdirectory script", t, func() {
+		s, err := FindScript([]string{
+			filepath.Join(fixDir, "baz", "bat"),
+		})
+		So(err, ShouldBeNil)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz", "bat"))
+	})
+
+	Convey("Should find the first given script", t, func() {
+		s, err := FindScript([]string{
+			filepath.Join(fixDir, "bar"),
+			filepath.Join(fixDir, "foo"),
+			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+		})
+		So(err, ShouldBeNil)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bar"))
+
+		s, err = FindScript([]string{
+			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+			filepath.Join(fixDir, "bar"),
+			filepath.Join(fixDir, "foo"),
+		})
+		So(err, ShouldBeNil)
+		So(s, ShouldEqual, filepath.Join(fixDir, "baz", "bat"))
+
+		s, err = FindScript([]string{
+			filepath.Join(fixDir, "bang", "boom", "flash"),
+			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "bar"),
+			filepath.Join(fixDir, "foo"),
+		})
+		So(err, ShouldBeNil)
+		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom", "flash"))
+	})
+}
