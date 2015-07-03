@@ -350,8 +350,7 @@ func RunScriptsWithOpts(scripts, args []string,
 		return 0, err
 	}
 
-	// TODO: use opts here, and test for it.
-	return RunExec(binDst, args, os.Stdin, os.Stdout, os.Stderr)
+	return RunExec(binDst, args, opts.Stdin, opts.Stdout, opts.Stderr)
 }
 
 func RunScriptDirWithOpts(dir string, args []string, opts ScriptOptions) (int, error) {

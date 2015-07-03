@@ -173,6 +173,8 @@ func TestRunScriptDirWithOpts(t *testing.T) {
 }
 
 func TestRunScriptsWithOpts(t *testing.T) {
+	fixDir := filepath.Join("_test", "fixtures")
+	tmpDir := filepath.Join("_test", "tmp")
 	dst := filepath.Join("_test", "tmp")
 
 	Convey("Should run a .go file", t, func() {
@@ -205,6 +207,22 @@ func TestRunScriptsWithOpts(t *testing.T) {
 		// Now check to make sure the nestedDst exists
 		_, err := os.Stat(nestedDst)
 		So(err, ShouldBeNil)
+	})
+
+	Convey("Should output stdout and stderr", t, func() {
+		src := filepath.Join(fixDir, "exit15.go")
+		var stdout, stderr bytes.Buffer
+
+		_, err := RunScriptsWithOpts([]string{src}, []string{}, ScriptOptions{
+			Temp:  tmpDir,
+			Stdin: nil, Stdout: &stdout, Stderr: &stderr,
+		})
+		So(err, ShouldBeNil)
+
+		b, _ := ioutil.ReadAll(&stdout)
+		So(string(b), ShouldEqual, "STDOUT: Exiting 15")
+		b, _ = ioutil.ReadAll(&stderr)
+		So(string(b), ShouldEqual, "STDERR: Exiting 15")
 	})
 }
 
