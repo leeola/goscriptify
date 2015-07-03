@@ -101,13 +101,27 @@ func FindScript(ps []string) (string, error) {
 //
 func FindScriptOrDir(ps []string, useDir bool) (path string, isDir bool,
 	err error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", false, err
+	}
+
+	return findScriptOrDir(cwd, ps, useDir)
+}
+
+// findScriptOrDir is the implementation of FindScriptOrDir with a
+// testable CWD. The CWD is needed because it treats a path of
+// `dir/script.go` differently than `script.go` - and as a result we
+// can't pass in the full test path for every script, during test usage.
+func findScriptOrDir(cwd string, ps []string, useDir bool) (path string,
+	isDir bool, err error) {
 
 	var exists bool
 	for _, p := range ps {
 		// Not checking for error here, because we only care about finding
 		// a valid, readable, script. If anything stops that (permissions/etc)
 		// we don't care - it may as well not exist.
-		exists, isDir, _ = utils.Exists(p)
+		exists, isDir, _ = utils.Exists(filepath.Join(cwd, p))
 		if exists {
 			// If path is a dir, we can't use its dir. Return it directly.
 			if isDir || !useDir {
@@ -119,6 +133,15 @@ func FindScriptOrDir(ps []string, useDir bool) (path string, isDir bool,
 			// If path is in the root (given) dir, return the script
 			if dir == "." {
 				return p, isDir, nil
+			}
+
+			// We know that it's in a subdir (because the dir isn't .) and
+			// useDir == true, so make sure that the file extension is .go.
+			// If it's not, `go build` will be unable to find the given script
+			// because it will be looking for .go files in the directory.
+			if filepath.Ext(p) != ".go" {
+				return "", false, errors.New("FindScriptOrDir: Subdirectory " +
+					"scripts must use the .go extension")
 			}
 
 			return dir, true, nil

@@ -267,7 +267,7 @@ func TestFindScriptOrDir(t *testing.T) {
 	Convey("Should use the directory of a script, if useDir", t, func() {
 		s, isDir, err := FindScriptOrDir([]string{
 			filepath.Join(fixDir, "idontexist"),
-			filepath.Join(fixDir, "baz", "bat"),
+			filepath.Join(fixDir, "baz", "bat.go"),
 		}, true)
 		So(err, ShouldBeNil)
 		So(isDir, ShouldBeTrue)
@@ -275,7 +275,7 @@ func TestFindScriptOrDir(t *testing.T) {
 
 		s, isDir, err = FindScriptOrDir([]string{
 			filepath.Join(fixDir, "idontexist"),
-			filepath.Join(fixDir, "bang", "boom", "flash"),
+			filepath.Join(fixDir, "bang", "boom", "flash.go"),
 		}, true)
 		So(err, ShouldBeNil)
 		So(isDir, ShouldBeTrue)
@@ -291,4 +291,48 @@ func TestFindScriptOrDir(t *testing.T) {
 		So(isDir, ShouldBeTrue)
 		So(s, ShouldEqual, filepath.Join(fixDir, "bang", "boom"))
 	})
+
+	Convey("Should not allow non-.go extensions in subdirs if useDir", t,
+		func() {
+			_, _, err := FindScriptOrDir([]string{
+				filepath.Join(fixDir, "idontexist"),
+				filepath.Join(fixDir, "bang", "boom", "flash"),
+			}, true)
+			So(err, ShouldNotBeNil)
+		})
+}
+
+// TODO: Find a way to make findScriptOrDir tests pass on OSX.
+// NOTE: Due to OSX's case insensitivity, it's hard (maybe possible?)
+// to know the *actual* filename of the found file. Tests, then
+// have to ignore the string output of this function, as it will
+// fail on OSX. I'd love to see a workaround for this issue.
+//
+// So, a fail on OSX does not currently mean truly failing tests.
+// Run on Linux to confirm.
+func TestFindScriptOrDirlower(t *testing.T) {
+	cwd, _ := os.Getwd()
+	fixDir := filepath.Join("_test", "fixtures")
+	// Fake the cwd from the root of goscriptify, to
+	// the fixDir
+	fixDirCwd := filepath.Join(cwd, fixDir)
+
+	Convey("Should find from the given cwd", t, func() {
+		s, isDir, err := findScriptOrDir(
+			filepath.Join(fixDirCwd, "bang", "boom"),
+			[]string{"idontexist", "flash.go"},
+			false,
+		)
+
+		So(err, ShouldBeNil)
+		So(isDir, ShouldBeFalse)
+		So(s, ShouldEqual, "flash.go")
+	})
+
+	Convey("Should not allow non-.go extensions in subdirs if useDir", t,
+		func() {
+			_, _, err := findScriptOrDir(fixDirCwd,
+				[]string{"idontexist", "exit0"}, true)
+			So(err, ShouldBeNil)
+		})
 }
